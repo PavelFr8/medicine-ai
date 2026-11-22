@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Медсап — анкета перед приёмом</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="page header-content">
+            <span class="wordmark">Медсап</span>
+            <span class="badge">Демонстрация</span>
+        </div>
+    </header>
+
+    <main class="page">
+        <div class="intro">
+            <h1>Анкета перед приёмом</h1>
+            <p>Опиши самочувствие, чтобы собрать короткую сводку для врача.</p>
+        </div>
+
+        <div class="layout">
+            <section class="card" aria-labelledby="intake-title">
+                <div class="card-header">
+                    <h2 id="intake-title">Самочувствие</h2>
+                    <a class="text-action" href="{{ url_for('index', sample=1) }}">Подставить пример</a>
+                </div>
+                <p class="hint" id="form-note">Для демонстрации используй вымышленные данные.</p>
+
+                <form action="{{ url_for('index') }}" method="post" aria-describedby="form-note">
+                    {% if error %}
+                        <p class="error" role="alert" id="form-error">{{ error }}</p>
+                    {% endif %}
+
+                    <div class="field">
+                        <label for="symptoms">Что беспокоит?</label>
+                        <textarea id="symptoms" name="symptoms" rows="3" maxlength="{{ max_length }}"
+                                  placeholder="Например, болит голова и сложно сосредоточиться" required
+                                  {% if error_field == 'symptoms' %}aria-invalid="true" aria-describedby="form-error"{% endif %}>{{ values.symptoms }}</textarea>
+                    </div>
+
+                    <div class="field">
+                        <label for="timeline">Когда началось и как менялось?</label>
+                        <textarea id="timeline" name="timeline" rows="2" maxlength="{{ max_length }}"
+                                  placeholder="Например, началось вчера, сегодня сильнее"
+                                  {% if error_field == 'timeline' %}aria-invalid="true" aria-describedby="form-error"{% endif %}>{{ values.timeline }}</textarea>
+                    </div>
+
+                    <div class="field-grid">
+                        <div class="field">
+                            <label for="regular_medications">Постоянные лекарства</label>
+                            <textarea id="regular_medications" name="regular_medications" rows="2" maxlength="{{ max_length }}"
+                                      placeholder="Название, доза, частота"
+                                      {% if error_field == 'regular_medications' %}aria-invalid="true" aria-describedby="form-error"{% endif %}>{{ values.regular_medications }}</textarea>
+                        </div>
+                        <div class="field">
+                            <label for="recent_medications">Приём из-за этих жалоб</label>
+                            <textarea id="recent_medications" name="recent_medications" rows="2" maxlength="{{ max_length }}"
+                                      placeholder="Название, доза, когда принимал"
+                                      {% if error_field == 'recent_medications' %}aria-invalid="true" aria-describedby="form-error"{% endif %}>{{ values.recent_medications }}</textarea>
+                        </div>
+                        <div class="field">
+                            <label for="allergies">Известные аллергии</label>
+                            <textarea id="allergies" name="allergies" rows="2" maxlength="{{ max_length }}"
+                                      placeholder="Если есть, укажи на что"
+                                      {% if error_field == 'allergies' %}aria-invalid="true" aria-describedby="form-error"{% endif %}>{{ values.allergies }}</textarea>
+                        </div>
+                        <div class="field">
+                            <label for="chronic_conditions">Хронические заболевания</label>
+                            <textarea id="chronic_conditions" name="chronic_conditions" rows="2" maxlength="{{ max_length }}"
+                                      placeholder="Если есть, перечисли"
+                                      {% if error_field == 'chronic_conditions' %}aria-invalid="true" aria-describedby="form-error"{% endif %}>{{ values.chronic_conditions }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        {% if ai_available %}
+                            <button class="primary" type="submit" name="mode" value="ai">Сформировать с ИИ</button>
+                            <button class="secondary" type="submit" name="mode" value="demo">Сформировать без ИИ</button>
+                        {% else %}
+                            <button class="primary" type="submit" name="mode" value="demo">Сформировать сводку</button>
+                        {% endif %}
+                    </div>
+                    {% if ai_available %}
+                        <p class="hint mode-note">Кнопка «Сформировать с ИИ» отправляет текст анкеты в OpenAI API.</p>
+                    {% else %}
+                        <p class="hint mode-note">Демо без ИИ. Заполненные поля переносятся в сводку.</p>
+                    {% endif %}
+                </form>
+            </section>
+
+            <section class="card summary-card{% if summary %} has-summary{% endif %}" aria-labelledby="summary-title">
+                <div class="card-header">
+                    <h2 id="summary-title">Черновик для врача</h2>
+                    {% if summary %}
+                        <span class="badge summary-mode">{{ 'С ИИ' if mode == 'ai' else 'Без ИИ' }}</span>
+                    {% endif %}
+                </div>
+                {% if summary %}
+                    <p class="hint summary-note">Со слов пациента</p>
+                    <dl class="summary-list">
+                        {% for field, label in fields.items() %}
+                            {% set parts = summary.excerpts[field] %}
+                            <div class="summary-row">
+                                <dt>{{ label }}</dt>
+                                {% if parts %}
+                                    {% for part in parts %}<dd>{{ part }}</dd>{% endfor %}
+                                {% else %}
+                                    <dd class="missing">Не указано</dd>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </dl>
+                    {% if summary.questions %}
+                        <div class="questions">
+                            <h3>Что уточнить</h3>
+                            <ul>
+                                {% for question in summary.questions %}<li>{{ question }}</li>{% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="summary-empty">
+                        <p>Здесь появятся жалобы, сроки и сведения о лекарствах после отправки анкеты.</p>
+                    </div>
+                {% endif %}
+            </section>
+        </div>
+    </main>
+    {% if summary %}
+        <script>
+            if (window.matchMedia('(max-width: 760px)').matches) {
+                document.getElementById('summary-title').scrollIntoView({ block: 'start' });
+            }
+        </script>
+    {% endif %}
+</body>
+</html>
